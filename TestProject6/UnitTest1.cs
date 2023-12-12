@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Playwright;
 using Microsoft.Playwright.NUnit;
 using Should;
@@ -7,9 +8,18 @@ using Should;
 [TestFixture]
 public class AppTests : PageTest
 {
+    private IConfiguration config { get; }
+
+    public AppTests()
+    {
+        config = new ConfigurationBuilder()
+            .AddUserSecrets<AppTests>()
+            .Build();
+    }
+
     private async Task GetHomePage()
     {
-        await Page.GotoAsync("CHANGE TO URI");
+        await Page.GotoAsync(config["TEST_URL"]);
 
         await Expect(Page).ToHaveTitleAsync("Home");
     }
@@ -66,13 +76,19 @@ public class AppTests : PageTest
     public async Task RedisPubSubWorks()
     {
         await GetHomePage();
+        await Page.ScreenshotAsync(new() { Path = "../../../screenshot-start.png" });
 
         // Click the get started link.
-        await Page.GetByRole(AriaRole.Link, new() { Name = "Redis" })
-            .ClickAsync();
-
+        await Page.GetByRole(AriaRole.Link, new() { Name = "Redis" }).ClickAsync();
+        
         // Expects the URL to contain intro.
         await Expect(Page).ToHaveURLAsync(new Regex(".*redis"));
+
+        await Page.ScreenshotAsync(new() { Path = "../../../screenshot-redis1.png" });
+
+        await Task.Delay(2000);
+
+        await Page.ScreenshotAsync(new() { Path = "../../../screenshot-redis2.png" });
 
         // enter text into the textbox
         (await Page.InputValueAsync("input[name=messageEntered]"))
@@ -87,8 +103,15 @@ public class AppTests : PageTest
         // click the button to send the message
         await button.ClickAsync(new()
         {
-            Timeout = 5000
+            Timeout = 3000,
+            Force = true
         });
+
+        await Page.ScreenshotAsync(new() { Path = "../../../screenshot-end2.png" });
+
+        await Task.Delay(2000);
+
+        await Page.ScreenshotAsync(new() { Path = "../../../screenshot-end2.png" });
 
         await Expect(Page.Locator("#messageContainer"))
             .ToHaveTextAsync("Sent to Redis: asdfasdf");
